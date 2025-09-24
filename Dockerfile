@@ -20,6 +20,11 @@ RUN apt-get install -y \
 
 RUN rm /run/reboot-required*
 
+# Override poweroff, shutdown, and reboot commands
+RUN ln -sf /bin/true /sbin/shutdown && \
+    ln -sf /bin/true /sbin/reboot && \
+    ln -sf /bin/true /sbin/poweroff
+
 RUN sed -i '3 a echo "\
 export GNOME_SHELL_SESSION_MODE=ubuntu\\n\
 export XDG_SESSION_TYPE=x11\\n\
