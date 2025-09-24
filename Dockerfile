@@ -30,6 +30,9 @@ export XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg\\n\
 # Python setup
 RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.12-venv
 
+# Gnome tweaks
+RUN apt-get nautilus-extension-gnome-terminal
+
 # VSCode
 RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg \
     && install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg \
