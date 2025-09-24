@@ -3,6 +3,15 @@ FROM ubuntu:latest
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Manila
 
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV NVIDIA_VISIBLE_DEVICES=all
+
+# Create runtime dir and set environment variable
+RUN mkdir -p /tmp/runtime && \
+    chown 1000:1000 /tmp/runtime
+
+ENV XDG_RUNTIME_DIR=/tmp/runtime
+
 # Base system update & upgrade
 RUN apt-get -y update && apt-get -y upgrade
 
@@ -38,16 +47,6 @@ RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.1
 # Gnome tweaks
 RUN apt-get install -y nautilus nautilus-extension-gnome-terminal
 
-# VSCode
-RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg \
-    && install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg \
-    && rm -f microsoft.gpg \
-    && echo "Types: deb\nURIs: https://packages.microsoft.com/repos/code\nSuites: stable\nComponents: main\nArchitectures: amd64,arm64,armhf\nSigned-By: /usr/share/keyrings/microsoft.gpg" \
-        > /etc/apt/sources.list.d/vscode.sources \
-    && apt-get update \
-    && apt-get install -y code \
-    && rm -rf /var/cache/apt /var/lib/apt/lists/*
-
 # Webots
 RUN wget https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb \
     && apt-get update \
@@ -82,6 +81,32 @@ RUN mkdir -p /etc/apt/keyrings \
     && apt-get install -y --no-install-recommends firefox \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Vulkan
+RUN apt-get update \
+    && apt-get install -y \
+    libxext6 \
+    libvulkan1 \
+    libvulkan-dev \
+    vulkan-tools
+
+
+COPY nvidia_icd.json /etc/vulkan/icd.d
+
+# Force GNOME to use X11
+RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
+    (sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf || \
+     echo "WaylandEnable=false" >> /etc/gdm3/custom.conf)
+
+COPY systemd/systemctl3.py /usr/bin/systemctl
+RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
+
+# Download RustDesk
+RUN wget https://github.com/rustdesk/rustdesk/releases/download/1.4.2/rustdesk-1.4.2-x86_64.deb -O /tmp/rustdesk_1.4.2.deb \
+    && apt-get update \
+    && apt-get install -y /tmp/rustdesk_1.4.2.deb \
+    && rm -f /tmp/rustdesk_1.4.2.deb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*

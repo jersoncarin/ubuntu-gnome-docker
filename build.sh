@@ -4,6 +4,7 @@ ln -sf /usr/share/zoneinfo/Asia/Manila /etc/localtime
 echo "Asia/Manila" > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata
 
+
 start_xrdp_services() {
     # Start dbus (needed for GNOME/MATE)
     service dbus start
@@ -59,8 +60,17 @@ create_user_and_cloudflared() {
     else
         echo "cloudflared not found. Skipping service install."
     fi
+    
+    mount -o remount,rw /etc/resolv.conf || echo "Could not remount /etc/resolv.conf"
+    
+    # Set DNS
+    echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" > /etc/resolv.conf
+    
+    rustdesk --option allow-linux-headless Y
+    echo -n "Rustdesk ID: "
+    rustdesk --get-id
+    rustdesk --password "${password}"
 }
-
 
 echo Entrypoint script is Running...
 echo

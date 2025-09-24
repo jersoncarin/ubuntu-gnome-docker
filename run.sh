@@ -62,14 +62,17 @@ else
     RUN_FLAGS="-it"
 fi
 
-# Run docker container with sudo
 sudo docker run $RUN_FLAGS \
---cap-add=SYS_ADMIN \
+--privileged \
 --security-opt seccomp=unconfined \
+-v /sys/fs/cgroup:/sys/fs/cgroup:ro \
 -v "$HOME/$IMAGE:/home" \
+-v /dev/dri:/dev/dri \
 --runtime=nvidia \
 --gpus all \
 -p "$PORT":3389 \
 --restart $RESTART_POLICY \
+--dns=8.8.8.8 \
+--dns=8.8.4.4 \
 "$IMAGE" \
 "${USERNAME:-}" "${PASSWORD:-}" "${SUDO_CAP:-}" "${CLOUD_FLARED:-}"
