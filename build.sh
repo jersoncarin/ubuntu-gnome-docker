@@ -4,7 +4,6 @@ ln -sf /usr/share/zoneinfo/Asia/Manila /etc/localtime
 echo "Asia/Manila" > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata
 
-
 start_xrdp_services() {
     # Start dbus (needed for GNOME/MATE)
     service dbus start
@@ -15,6 +14,9 @@ start_xrdp_services() {
     # Prevent stale PID issues
     rm -rf /var/run/xrdp-sesman.pid /var/run/xrdp.pid
     rm -rf /var/run/xrdp/xrdp-sesman.pid /var/run/xrdp/xrdp.pid
+    
+    # increase net memory max
+    sysctl -w net.core.wmem_max=8388608
     
     # Start xrdp-sesman, then replace shell with xrdp
     xrdp-sesman && exec xrdp -n
@@ -60,6 +62,28 @@ create_user_and_cloudflared() {
     else
         echo "cloudflared not found. Skipping service install."
     fi
+    
+    # --- Apply XRDP settings using sed ---
+    sed -i '/^Policy=/c\Policy=UBDI' /etc/xrdp/sesman.ini || echo "Adding Policy to sesman.ini" && echo "Policy=UBDI" >> /etc/xrdp/sesman.ini
+    sed -i '/^max_bpp=/c\max_bpp=16' /etc/xrdp/sesman.ini || echo "max_bpp=16" >> /etc/xrdp/sesman.ini
+    sed -i '/^xserverbpp=/c\xserverbpp=16' /etc/xrdp/sesman.ini || echo "xserverbpp=16" >> /etc/xrdp/sesman.ini
+    sed -i '/^use_compression=/c\use_compression=yes' /etc/xrdp/sesman.ini || echo "use_compression=yes" >> /etc/xrdp/sesman.ini
+    sed -i '/^crypt_level=/c\crypt_level=none' /etc/xrdp/sesman.ini || echo "crypt_level=none" >> /etc/xrdp/sesman.ini
+    sed -i '/^KillDisconnected=/c\KillDisconnected=true' /etc/xrdp/sesman.ini || echo "KillDisconnected=true" >> /etc/xrdp/sesman.ini
+    sed -i '/^DisconnectedTimeLimit=/c\DisconnectedTimeLimit=0' /etc/xrdp/sesman.ini || echo "DisconnectedTimeLimit=0" >> /etc/xrdp/sesman.ini
+    sed -i 's/^#\?tcp_send_buffer_bytes=.*/tcp_send_buffer_bytes=4194304/' /etc/xrdp/sesman.ini || echo "tcp_send_buffer_bytes=4194304" >> /etc/xrdp/sesman.ini
+    
+    sed -i '/^Policy=/c\Policy=UBDI' /etc/xrdp/xrdp.ini || echo "Policy=UBDI" >> /etc/xrdp/xrdp.ini
+    sed -i '/^max_bpp=/c\max_bpp=16' /etc/xrdp/xrdp.ini || echo "max_bpp=16" >> /etc/xrdp/xrdp.ini
+    sed -i '/^xserverbpp=/c\xserverbpp=16' /etc/xrdp/xrdp.ini || echo "xserverbpp=16" >> /etc/xrdp/xrdp.ini
+    sed -i '/^use_compression=/c\use_compression=yes' /etc/xrdp/xrdp.ini || echo "use_compression=yes" >> /etc/xrdp/xrdp.ini
+    sed -i '/^crypt_level=/c\crypt_level=none' /etc/xrdp/xrdp.ini || echo "crypt_level=none" >> /etc/xrdp/xrdp.ini
+    sed -i '/^KillDisconnected=/c\KillDisconnected=true' /etc/xrdp/xrdp.ini || echo "KillDisconnected=true" >> /etc/xrdp/xrdp.ini
+    sed -i '/^DisconnectedTimeLimit=/c\DisconnectedTimeLimit=0' /etc/xrdp/xrdp.ini || echo "DisconnectedTimeLimit=0" >> /etc/xrdp/xrdp.ini
+    sed -i 's/^#\?tcp_send_buffer_bytes=.*/tcp_send_buffer_bytes=4194304/' /etc/xrdp/xrdp.ini    || echo "tcp_send_buffer_bytes=4194304" >> /etc/xrdp/xrdp.ini
+    
+    # --- TCP tuning ---
+    sysctl -w net.core.wmem_max=8388608
     
     mount -o remount,rw /etc/resolv.conf || echo "Could not remount /etc/resolv.conf"
     

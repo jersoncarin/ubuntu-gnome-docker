@@ -7,10 +7,12 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
 
 # Create runtime dir and set environment variable
-RUN mkdir -p /tmp/runtime && \
-    chown 1000:1000 /tmp/runtime
+RUN mkdir -p /tmp/runtime-cuda && \
+    chown 1000:1000 /tmp/runtime-cuda
 
-ENV XDG_RUNTIME_DIR=/tmp/runtime
+ENV XDG_RUNTIME_DIR=/tmp/runtime-cuda
+ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
+ENV __NV_PRIME_RENDER_OFFLOAD=1
 
 # Base system update & upgrade
 RUN apt-get -y update && apt-get -y upgrade
@@ -22,6 +24,7 @@ RUN apt-get install -y \
     sudo \
     wget \
     curl \
+    nano \
     xrdp && \
     apt-get remove -y light-locker xscreensaver && \
     apt-get autoremove -y && \
@@ -35,6 +38,9 @@ RUN ln -sf /bin/true /sbin/shutdown && \
     ln -sf /bin/true /sbin/poweroff
 
 RUN sed -i '3 a echo "\
+export XDG_RUNTIME_DIR=/tmp/runtime-cuda\\n\
+export __GLX_VENDOR_LIBRARY_NAME=nvidia\\n\
+export __NV_PRIME_RENDER_OFFLOAD=1\\n\
 export GNOME_SHELL_SESSION_MODE=ubuntu\\n\
 export XDG_SESSION_TYPE=x11\\n\
 export XDG_CURRENT_DESKTOP=ubuntu:GNOME\\n\
@@ -46,6 +52,20 @@ RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.1
 
 # Gnome tweaks
 RUN apt-get install -y nautilus nautilus-extension-gnome-terminal
+
+# Install goodies
+RUN apt install -y wget software-properties-common apt-transport-https
+
+# Vscode
+# Add Microsoft GPG key and repo for VSCode
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg \
+    && install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg \
+    && rm -f microsoft.gpg \
+    && echo "Types: deb\nURIs: https://packages.microsoft.com/repos/code\nSuites: stable\nComponents: main\nArchitectures: amd64,arm64,armhf\nSigned-By: /usr/share/keyrings/microsoft.gpg" \
+        > /etc/apt/sources.list.d/vscode.sources \
+    && apt-get update \
+    && apt-get install -y code \
+    && rm -rf /var/cache/apt /var/lib/apt/lists/*
 
 # Webots
 RUN wget https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb \
@@ -60,9 +80,6 @@ RUN mkdir -p /usr/share/keyrings && \
     echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list && \
     apt-get update && apt-get install -y --no-install-recommends cloudflared && \
     rm -rf /var/lib/apt/lists/*
-
-# Install goodies
-RUN apt install -y wget software-properties-common apt-transport-https
 
 # Remove snap firefox (preinstalled on Ubuntu)
 RUN apt-get purge -y firefox \
@@ -100,6 +117,7 @@ RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
 COPY systemd/systemctl3.py /usr/bin/systemctl
 RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
 
+
 # Download RustDesk
 RUN wget https://github.com/rustdesk/rustdesk/releases/download/1.4.2/rustdesk-1.4.2-x86_64.deb -O /tmp/rustdesk_1.4.2.deb \
     && apt-get update \
@@ -108,12 +126,14 @@ RUN wget https://github.com/rustdesk/rustdesk/releases/download/1.4.2/rustdesk-1
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # Copy your entrypoint script
 COPY ./build.sh /usr/bin/
 RUN mv /usr/bin/build.sh /usr/bin/run.sh && chmod +x /usr/bin/run.sh
+
 
 # Docker config
 EXPOSE 3389

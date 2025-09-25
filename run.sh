@@ -68,6 +68,8 @@ sudo docker run $RUN_FLAGS \
 -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
 -v "$HOME/$IMAGE:/home" \
 -v /dev/dri:/dev/dri \
+-e DISPLAY=$DISPLAY \
+-v /tmp/.X11-unix:/tmp/.X11-unix \
 --runtime=nvidia \
 --gpus all \
 -p "$PORT":3389 \
