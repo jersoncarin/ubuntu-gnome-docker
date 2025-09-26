@@ -20,9 +20,18 @@ ENV VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
 # Base system update & upgrade
 RUN apt-get -y update && apt-get -y upgrade
 
-# Install GNOME desktop (minimal set to avoid bloat)
+# Install needed
 RUN apt-get install -y \
-    ubuntu-desktop \
+    xfce4 \
+    xfce4-clipman-plugin \
+    xfce4-cpugraph-plugin \
+    xfce4-netload-plugin \
+    xfce4-screenshooter \
+    xfce4-taskmanager \
+    xfce4-terminal \
+    xfce4-xkb-plugin \
+    xfce4-goodies \
+    neofetch \
     dbus-x11 \
     openssh-server \
     sudo \
@@ -37,7 +46,7 @@ RUN apt-get install -y \
     apt-get autoremove -y && \
     rm -rf /var/cache/apt /var/lib/apt/lists
 
-RUN rm /run/reboot-required*
+# RUN rm /run/reboot-required*
 
 # transfer the vnc server
 COPY ./scripts/vnc.sh /usr/local/bin/
@@ -56,7 +65,7 @@ RUN echo "PermitRootLogin no" >> /etc/ssh/sshd_config
 RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.12-venv
 
 # Gnome tweaks
-RUN apt-get install -y nautilus nautilus-extension-gnome-terminal
+# RUN apt-get install -y nautilus nautilus-extension-gnome-terminal
 
 # Install goodies
 RUN apt install -y software-properties-common apt-transport-https
@@ -69,10 +78,10 @@ RUN apt-get update \
     libvulkan-dev \
     vulkan-tools
 
-# Force GNOME to use X11
-RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
-    (sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf || \
-     echo "WaylandEnable=false" >> /etc/gdm3/custom.conf)
+# # Force GNOME to use X11
+# RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
+#     (sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf || \
+#      echo "WaylandEnable=false" >> /etc/gdm3/custom.conf)
 
 COPY ./scripts/systemd/systemctl3.py /usr/bin/systemctl
 RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl

@@ -5,7 +5,7 @@ echo "Asia/Manila" > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata
 
 start_services() {
-    # Start dbus (needed for GNOME/MATE)
+    # Start dbus
     service dbus start
     
     # Start logind (systemd replacement, hacky)
