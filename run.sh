@@ -2,12 +2,14 @@
 
 # Default values
 DEFAULT_PORT=3390
+DEFAULT_VNC_PORT=5901
+DEFAULT_SSH_PORT=2222
 DETACH=false
 RESTART_POLICY="unless-stopped"
 
 # Function to print usage
 usage() {
-    echo "Usage: $0 <image_name> [--port <port>] [--username <username>] [--password <password>] [--sp <sudo_cap>] [--cft <cloudflared_token>] [--detach|-d] [--restart <policy>]"
+    echo "Usage: $0 <image_name> [--port <port>] [--vnc-port <vnc_port>] [--username <username>] [--password <password>] [--sp <sudo_cap>] [--cft <cloudflared_token>] [--detach|-d] [--restart <policy>]"
     echo "Restart policy options: no, always, unless-stopped, on-failure[:max-retries]"
     exit 1
 }
@@ -33,6 +35,8 @@ shift
 while [[ $# -gt 0 ]]; do
     case $1 in
         --port) PORT="$2"; shift 2 ;;
+        --vnc-port) VNC_PORT="$2"; shift 2 ;;
+        --ssh-port) DEFAULT_SSH_PORT="$2"; shift 2 ;;
         --username) USERNAME="$2"; shift 2 ;;
         --password) PASSWORD="$2"; shift 2 ;;
         --sp) SUDO_CAP="$2"; shift 2 ;;
@@ -43,16 +47,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Set port to default if not provided
+# Set RDP port to default if not provided
 if [[ -z "$PORT" ]]; then
     PORT=$DEFAULT_PORT
-    # Increment port until available
     while lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; do
         PORT=$((PORT + 1))
     done
 fi
 
+# Set VNC port to default if not provided
+if [[ -z "$VNC_PORT" ]]; then
+    VNC_PORT=$DEFAULT_VNC_PORT
+    while lsof -Pi :$VNC_PORT -sTCP:LISTEN -t >/dev/null ; do
+        VNC_PORT=$((VNC_PORT + 1))
+    done
+fi
+
 echo "Running on rdp://localhost:$PORT"
+echo "VNC available on vnc://localhost:$VNC_PORT"
 echo "Restart policy: $RESTART_POLICY"
 
 # Determine run mode
@@ -73,8 +85,8 @@ sudo docker run $RUN_FLAGS \
 --runtime=nvidia \
 --gpus all \
 -p "$PORT":3389 \
+-p "$VNC_PORT":"$VNC_PORT" \
+-p "$DEFAULT_SSH_PORT":22 \
 --restart $RESTART_POLICY \
---dns=8.8.8.8 \
---dns=8.8.4.4 \
 "$IMAGE" \
-"${USERNAME:-}" "${PASSWORD:-}" "${SUDO_CAP:-}" "${CLOUD_FLARED:-}"
+"${USERNAME:-}" "${PASSWORD:-}" "${SUDO_CAP:-}" "${CLOUD_FLARED:-}" "${VNC_PORT:-}"

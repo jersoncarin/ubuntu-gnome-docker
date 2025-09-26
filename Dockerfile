@@ -14,6 +14,9 @@ ENV XDG_RUNTIME_DIR=/tmp/runtime-cuda
 ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
 ENV __NV_PRIME_RENDER_OFFLOAD=1
 
+COPY ./scripts/nvidia_icd.json /etc/vulkan/icd.d
+ENV VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
+
 # Base system update & upgrade
 RUN apt-get -y update && apt-get -y upgrade
 
@@ -21,31 +24,33 @@ RUN apt-get -y update && apt-get -y upgrade
 RUN apt-get install -y \
     ubuntu-desktop \
     dbus-x11 \
+    openssh-server \
     sudo \
     wget \
     curl \
-    nano \
-    xrdp && \
+    git \
+    mesa-utils \
+    tigervnc-standalone-server \ 
+    tigervnc-xorg-extension \
+    nano && \
     apt-get remove -y light-locker xscreensaver && \
     apt-get autoremove -y && \
     rm -rf /var/cache/apt /var/lib/apt/lists
 
 RUN rm /run/reboot-required*
 
-# Override poweroff, shutdown, and reboot commands
-RUN ln -sf /bin/true /sbin/shutdown && \
-    ln -sf /bin/true /sbin/reboot && \
-    ln -sf /bin/true /sbin/poweroff
+# transfer the vnc server
+COPY ./scripts/vnc.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/vnc.sh
 
-RUN sed -i '3 a echo "\
-export XDG_RUNTIME_DIR=/tmp/runtime-cuda\\n\
-export __GLX_VENDOR_LIBRARY_NAME=nvidia\\n\
-export __NV_PRIME_RENDER_OFFLOAD=1\\n\
-export GNOME_SHELL_SESSION_MODE=ubuntu\\n\
-export XDG_SESSION_TYPE=x11\\n\
-export XDG_CURRENT_DESKTOP=ubuntu:GNOME\\n\
-export XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg\\n\
-" > ~/.xsessionrc' /etc/xrdp/startwm.sh
+# Create the SSH directory and configure permissions
+RUN mkdir /var/run/sshd
+
+# Enable password authentication in the SSH configuration
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
+# Optional: Disable root login via SSH
+RUN echo "PermitRootLogin no" >> /etc/ssh/sshd_config
 
 # Python setup
 RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.12-venv
@@ -54,7 +59,24 @@ RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3.1
 RUN apt-get install -y nautilus nautilus-extension-gnome-terminal
 
 # Install goodies
-RUN apt install -y wget software-properties-common apt-transport-https
+RUN apt install -y software-properties-common apt-transport-https
+
+# Install Vulkan
+RUN apt-get update \
+    && apt-get install -y \
+    libxext6 \
+    libvulkan1 \
+    libvulkan-dev \
+    vulkan-tools
+
+# Force GNOME to use X11
+RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
+    (sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf || \
+     echo "WaylandEnable=false" >> /etc/gdm3/custom.conf)
+
+COPY ./scripts/systemd/systemctl3.py /usr/bin/systemctl
+RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
+
 
 # Vscode
 # Add Microsoft GPG key and repo for VSCode
@@ -98,26 +120,6 @@ RUN mkdir -p /etc/apt/keyrings \
     && apt-get install -y --no-install-recommends firefox \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Vulkan
-RUN apt-get update \
-    && apt-get install -y \
-    libxext6 \
-    libvulkan1 \
-    libvulkan-dev \
-    vulkan-tools
-
-
-COPY nvidia_icd.json /etc/vulkan/icd.d
-
-# Force GNOME to use X11
-RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
-    (sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf || \
-     echo "WaylandEnable=false" >> /etc/gdm3/custom.conf)
-
-COPY systemd/systemctl3.py /usr/bin/systemctl
-RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
-
-
 # Download RustDesk
 RUN wget https://github.com/rustdesk/rustdesk/releases/download/1.4.2/rustdesk-1.4.2-x86_64.deb -O /tmp/rustdesk_1.4.2.deb \
     && apt-get update \
@@ -126,15 +128,17 @@ RUN wget https://github.com/rustdesk/rustdesk/releases/download/1.4.2/rustdesk-1
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # Copy your entrypoint script
-COPY ./build.sh /usr/bin/
-RUN mv /usr/bin/build.sh /usr/bin/run.sh && chmod +x /usr/bin/run.sh
-
+COPY ./scripts/start.sh /usr/bin/
+RUN mv /usr/bin/start.sh /usr/bin/run.sh && chmod +x /usr/bin/run.sh
 
 # Docker config
+EXPOSE 22
+EXPOSE 1
+EXPOSE 5901
 EXPOSE 3389
+
 ENTRYPOINT ["/usr/bin/run.sh"]
