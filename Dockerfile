@@ -77,7 +77,6 @@ RUN grep -q '^WaylandEnable=false' /etc/gdm3/custom.conf || \
 COPY ./scripts/systemd/systemctl3.py /usr/bin/systemctl
 RUN test -e /bin/systemctl || ln -sf /usr/bin/systemctl /bin/systemctl
 
-
 # Vscode
 # Add Microsoft GPG key and repo for VSCode
 RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg \
@@ -134,11 +133,5 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 # Copy your entrypoint script
 COPY ./scripts/start.sh /usr/bin/
 RUN mv /usr/bin/start.sh /usr/bin/run.sh && chmod +x /usr/bin/run.sh
-
-# Docker config
-EXPOSE 22
-EXPOSE 1
-EXPOSE 5901
-EXPOSE 3389
 
 ENTRYPOINT ["/usr/bin/run.sh"]
