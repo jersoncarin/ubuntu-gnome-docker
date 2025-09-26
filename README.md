@@ -1,6 +1,6 @@
-# Ubuntu Latest GNOME on Docker RDP
+# Ubuntu Latest GNOME on Docker VNC
 
-This guide explains how to build and run a Docker container with a full desktop environment, RDP access, and Cloudflared.
+This guide explains how to build and run a Docker container with a full desktop environment, VNC access, and Cloudflared.
 
 ---
 
@@ -45,7 +45,7 @@ sudo docker build -t <my_image_name> .
 sudo docker build -t mydockerimg .
 ```
 
-> This creates a Docker image named `mydockerimg` ready to be run with desktop and RDP support.
+> This creates a Docker image named `mydockerimg` ready to be run with desktop and VNC support.
 
 ---
 
@@ -68,41 +68,42 @@ Use the provided `run.sh` script to start the container:
 | `--cft`           | Cloudflared token for service registration (cloudflare tunnel)                                                                     |
 | `--detach` / `-d` | Run container in background (detached mode)                                                                                        |
 | `--restart`       | Restart policy for the container. Default: `unless-stopped`. Options: `no`, `always`, `unless-stopped`, `on-failure[:max-retries]` |
+| `--vnc-port`      | The VNC Port access. Default: `5901`                                                                                               |
+| `--ssh-port`      | The SSH port access. Default: `2222`                                                                                               |
 
 **Examples:**
 
 **Interactive mode (default):**
 
 ```bash
-./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken
+./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --ssh-port 2222 --vnc-port 5912
 ```
 
 **Detached mode (background) with default restart policy:**
 
 ```bash
-./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --detach
+./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --detach --ssh-port 2222 --vnc-port 5912
 # or short version
-./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken -d
+./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken -d --ssh-port 2222 --vnc-port 5912
 ```
 
 **Detached mode with custom restart policy:**
 
 ```bash
-./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --detach --restart always
+./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --detach --restart always --ssh-port 2222 --vnc-port 5912
 ```
 
-> The script automatically chooses port `3390` for RDP and increments if the port is busy.  
-> After the container starts, it prints the RDP URL:
+> After the container starts, it prints the VNC URL:
 >
 > ```
-> Running on rdp://localhost:3390
+> Running on vnc://localhost:5912
 > ```
 
 ---
 
-## Accessing the RDP Server via Cloudflared
+## Accessing the VNC Server via Cloudflared
 
-To access the container's RDP remotely, you can use **Cloudflared** on your client machine:
+To access the container's VNC remotely, you can use **Cloudflared** on your client machine:
 
 1. **Install Cloudflared** on your client:
 
@@ -122,53 +123,25 @@ To access the container's RDP remotely, you can use **Cloudflared** on your clie
 2. **Connect to the RDP server:**
 
 ```bash
-cloudflared access rdp --hostname rdp.jersnetdev.com/<user> --url rdp://localhost:3390
+cloudflared access rdp --hostname <host>.jersnetdev.com --url tcp://localhost:5902
 ```
 
-> Take note: if the container auto-increments the port (because 3390 is in use), replace `3390` with the correct port printed by the `run.sh` script.
+> Take note: if the container auto-increments the vnc port (because 5901 is in use), replace `5901` with the correct port printed by the `run.sh` script.
 
-3. **Open your RDP client** (Microsoft RDP or other) and connect using the forwarded port from Cloudflared.
-
----
-
-## Features
-
-- Creates a user inside the container.
-- Optionally grants sudo access.
-- Installs and registers Cloudflared service if not present.
-- Starts xRDP services for remote desktop access.
-- Auto-detects free RDP port starting from 3390.
-- Allows secure remote access via Cloudflared tunnel.
-- Supports running in detached mode (`--detach` / `-d`).
-- Supports automatic restart policies (`--restart`).
-
----
+3. **Open your TigerVNC client** and use the localhost:5902 depends on what port you put
 
 ## Troubleshooting
 
 1. **Port conflicts**
 
-   - The script auto-increments the RDP port if `3390` is busy.
+   - The script auto-increments the VNC port if `5902` is busy.
    - Check which ports are in use:
      ```bash
      sudo lsof -iTCP -sTCP:LISTEN -P
      ```
 
-2. **xRDP fails to start**
-
-   - Ensure previous PID files are removed:
-     ```bash
-     sudo rm -rf /var/run/xrdp*
-     ```
-   - Restart the container.
-
-3. **Docker permission denied**
-
+2. **Docker permission denied**
    - Use `sudo ./run.sh ...` or add your user to the Docker group.
-
-4. **Cloudflared or Firefox installation issues**
-   - Check internet connectivity inside the container.
-   - Make sure the `wget` and `curl` packages are installed.
 
 ---
 
@@ -183,15 +156,15 @@ cloudflared access rdp --hostname rdp.jersnetdev.com/<user> --url rdp://localhos
 - If Docker is not in your user group, prepend `sudo`:
 
   ```bash
-  sudo ./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken
+  sudo ./run.sh mydockerimg --username testuser --password testpass --sp yes --cft mytoken --ssh-port 2222 --vnc-port 5912
   ```
 
 - The container directory `/home/<image_name>` is mounted to persist files between runs.
 
-- Remember to match the Cloudflared RDP port with the port printed by `run.sh`.
+- Remember to match the Cloudflared VNC port with the port printed by `run.sh`.
 
 ---
 
-## Credits
+## Author
 
-Thanks to [danchitnis](https://github.com/danchitnis/container-xrdp/) for the Dockerfile and config.
+Jerson Carin
